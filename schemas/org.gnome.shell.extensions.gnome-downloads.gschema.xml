@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="gnome-downloads">
+  <enum id="org.gnome.shell.extensions.gnome-downloads.view-mode">
+    <value nick="list" value="0"/>
+    <value nick="grid" value="1"/>
+  </enum>
+  <enum id="org.gnome.shell.extensions.gnome-downloads.sort-by">
+    <value nick="added" value="0"/>
+    <value nick="modified" value="1"/>
+  </enum>
+  <enum id="org.gnome.shell.extensions.gnome-downloads.panel-position">
+    <value nick="left" value="0"/>
+    <value nick="center" value="1"/>
+    <value nick="right" value="2"/>
+  </enum>
+
+  <schema id="org.gnome.shell.extensions.gnome-downloads"
+          path="/org/gnome/shell/extensions/gnome-downloads/">
+    <key name="downloads-folder" type="s">
+      <default>''</default>
+      <summary>Downloads folder</summary>
+      <description>Folder to watch. Empty uses the XDG Downloads directory.</description>
+    </key>
+    <key name="max-items" type="i">
+      <range min="1" max="100"/>
+      <default>12</default>
+      <summary>Number of downloads to show</summary>
+    </key>
+    <key name="view-mode" enum="org.gnome.shell.extensions.gnome-downloads.view-mode">
+      <default>'list'</default>
+      <summary>Show downloads as a list or as a grid</summary>
+    </key>
+    <key name="sort-by" enum="org.gnome.shell.extensions.gnome-downloads.sort-by">
+      <default>'added'</default>
+      <summary>Sort by date added or date modified</summary>
+    </key>
+    <key name="show-hidden" type="b">
+      <default>false</default>
+      <summary>Show hidden and backup files</summary>
+    </key>
+    <key name="generate-thumbnails" type="b">
+      <default>true</default>
+      <summary>Create previews for downloads that have no thumbnail yet</summary>
+    </key>
+    <key name="show-folders" type="b">
+      <default>true</default>
+      <summary>Show folders</summary>
+    </key>
+    <key name="animate-icon" type="b">
+      <default>true</default>
+      <summary>Bounce the panel icon when a download finishes</summary>
+    </key>
+    <key name="show-badge" type="b">
+      <default>true</default>
+      <summary>Show a dot on the panel icon for downloads you have not looked at</summary>
+    </key>
+    <key name="panel-position" enum="org.gnome.shell.extensions.gnome-downloads.panel-position">
+      <default>'right'</default>
+      <summary>Panel area for the icon</summary>
+    </key>
+    <key name="panel-index" type="i">
+      <range min="-1" max="50"/>
+      <default>0</default>
+      <summary>Position inside the panel area (-1 for the end)</summary>
+    </key>
+    <key name="clear-before" type="x">
+      <default>0</default>
+      <summary>Hide downloads added before this time (µs since epoch)</summary>
+      <description>Set by the Clear button. Files are never deleted.</description>
+    </key>
+    <key name="last-seen" type="x">
+      <default>0</default>
+      <summary>When the menu was last opened (µs since epoch)</summary>
+    </key>
+  </schema>
+</schemalist>

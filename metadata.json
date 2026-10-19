@@ -1,0 +1,15 @@
+{
+  "uuid": "gnome-downloads@matthias",
+  "name": "Downloads Stack",
+  "description": "A macOS-style Downloads menu for the top panel. Click the download icon to see your latest downloads with thumbnails, sizes and live progress for files that are still downloading.",
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48"
+  ],
+  "settings-schema": "org.gnome.shell.extensions.gnome-downloads",
+  "gettext-domain": "gnome-downloads",
+  "url": "https://github.com/matsch82/gnome-shell-downloads-menu",
+  "version": 1
+}
