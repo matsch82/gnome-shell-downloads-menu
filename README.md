@@ -2,8 +2,12 @@
 
 A macOS-style Downloads menu for the GNOME Shell top panel.
 
-Click the download icon in the panel to see your latest downloads, newest first,
-the way the Safari downloads popover and the Dock's Downloads stack work on macOS.
+Click the download icon in the panel to see your latest downloads, newest first.
+
+It works much like the download icon in Google Chrome's toolbar, which opens a
+bubble with your recent downloads and their progress, and like Safari's downloads
+popover on macOS. The difference is that it lives in the top bar and shows
+everything in your Downloads folder, whichever browser or app saved it.
 
 ![The Downloads menu with "Open With" for a PDF](screenshots/example.png)
 
