@@ -5,6 +5,8 @@ A macOS-style Downloads menu for the GNOME Shell top panel.
 Click the download icon in the panel to see your latest downloads, newest first,
 the way the Safari downloads popover and the Dock's Downloads stack work on macOS.
 
+![The Downloads menu with "Open With" for a PDF](screenshots/example.png)
+
 ![List and grid view](screenshots/list-and-grid.png)
 
 ![A download in progress](screenshots/downloading.png)
