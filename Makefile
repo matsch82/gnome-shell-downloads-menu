@@ -17,6 +17,7 @@ pack:
 	mkdir -p $(BUILD)
 	gnome-extensions pack --force --out-dir=$(BUILD) \
 		--extra-source=downloadsMonitor.js \
+		--extra-source=dragHelper.js \
 		--extra-source=thumbnailer.js \
 		--extra-source=icons \
 		.

@@ -4,6 +4,7 @@ import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
+import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 
@@ -110,6 +111,82 @@ function createThumbnail(item, size) {
         style_class: 'downloads-thumbnail',
         y_align: Clutter.ActorAlign.CENTER,
     });
+}
+
+const DRAG_HELPER_ID = 'io.github.matsch82.DownloadsMenu.DragHelper';
+const DRAG_HELPER_PATH = '/io/github/matsch82/DownloadsMenu/DragHelper';
+
+/**
+ * Talks to dragHelper.js, a small GTK program that carries a drag from the
+ * menu into other apps. GNOME Shell can't do that itself, and it only works
+ * on X11: Wayland lets a client start a drag only from its own mouse press.
+ */
+class DragHelperClient {
+    static get supported() {
+        return !Meta.is_wayland_compositor();
+    }
+
+    constructor(extensionPath) {
+        this._script = GLib.build_filenamev([extensionPath, 'dragHelper.js']);
+        this._available = false;
+        this._process = null;
+        this._pending = null;
+        this._watchId = Gio.bus_watch_name(Gio.BusType.SESSION, DRAG_HELPER_ID,
+            Gio.BusNameWatcherFlags.NONE,
+            () => {
+                this._available = true;
+                if (this._pending)
+                    this._send('drag', this._pending);
+                this._pending = null;
+            },
+            () => {
+                this._available = false;
+            });
+    }
+
+    /** Starts the helper ahead of time, so a drag doesn't have to wait. */
+    ensureRunning() {
+        if (this._available || this._process)
+            return;
+        try {
+            const launcher = new Gio.SubprocessLauncher({flags: Gio.SubprocessFlags.NONE});
+            launcher.setenv('GDK_BACKEND', 'x11', true);
+            this._process = launcher.spawnv(['gjs', '-m', this._script]);
+            this._process.wait_async(null, () => (this._process = null));
+        } catch (e) {
+            console.warn(`[gnome-downloads] Cannot start the drag helper: ${e.message}`);
+        }
+    }
+
+    startDrag(request) {
+        if (this._available) {
+            this._send('drag', request);
+        } else {
+            this._pending = request;
+            this.ensureRunning();
+        }
+    }
+
+    _send(action, request = null) {
+        const parameters = request ? [new GLib.Variant('s', JSON.stringify(request))] : [];
+        Gio.DBus.session.call(DRAG_HELPER_ID, DRAG_HELPER_PATH, 'org.gtk.Actions', 'Activate',
+            new GLib.Variant('(sava{sv})', [action, parameters, {}]),
+            null, Gio.DBusCallFlags.NONE, -1, null,
+            (connection, result) => {
+                try {
+                    connection.call_finish(result);
+                } catch (e) {
+                    console.warn(`[gnome-downloads] Drag helper: ${e.message}`);
+                }
+            });
+    }
+
+    destroy() {
+        Gio.bus_unwatch_name(this._watchId);
+        if (this._available)
+            this._send('quit');
+        this._pending = null;
+    }
 }
 
 // Indeterminate progress bar: a short bar gliding back and forth in a track.
@@ -342,6 +419,14 @@ class DownloadsIndicator extends PanelMenu.Button {
         this._buildPanelIcon();
         this._buildMenu();
         this._buildContextMenu();
+
+        this._dragHelper = DragHelperClient.supported
+            ? new DragHelperClient(extension.path) : null;
+        this._dragStart = null;
+        if (this._dragHelper) {
+            this.menu.actor.connectObject('captured-event',
+                (actor, event) => this._onMenuCapturedEvent(event), this);
+        }
 
         if (this._settings.get_int64('last-seen') === 0)
             this._settings.set_int64('last-seen', GLib.get_real_time());
@@ -586,8 +671,11 @@ class DownloadsIndicator extends PanelMenu.Button {
     _onMenuToggled(open) {
         if (!open) {
             this._contextMenu.close(BoxPointer.PopupAnimation.NONE);
+            this._dragStart = null;
             return;
         }
+
+        this._dragHelper?.ensureRunning();
 
         this._rebuildList();
         const adjustment = this._scrollView.vadjustment ?? this._scrollView.vscroll?.adjustment;
@@ -842,7 +930,77 @@ class DownloadsIndicator extends PanelMenu.Button {
         });
     }
 
+    // Press on a download and move the mouse to drag the file into another app.
+    _onMenuCapturedEvent(event) {
+        switch (event.type()) {
+        case Clutter.EventType.BUTTON_PRESS: {
+            this._dragStart = null;
+            if (event.get_button() !== Clutter.BUTTON_PRIMARY)
+                break;
+            const row = this._rowForActor(global.stage.get_event_actor(event));
+            if (row && !row.item.partial)
+                this._dragStart = {row, coords: event.get_coords()};
+            break;
+        }
+        case Clutter.EventType.BUTTON_RELEASE:
+            this._dragStart = null;
+            break;
+        case Clutter.EventType.MOTION: {
+            if (!this._dragStart)
+                break;
+            if (!(event.get_state() & Clutter.ModifierType.BUTTON1_MASK)) {
+                this._dragStart = null;
+                break;
+            }
+            const [x, y] = event.get_coords();
+            const [startX, startY] = this._dragStart.coords;
+            const threshold = St.Settings.get().drag_threshold;
+            if (Math.abs(x - startX) > threshold || Math.abs(y - startY) > threshold) {
+                const {item} = this._dragStart.row;
+                this._dragStart = null;
+                this._dragOut(item);
+                return Clutter.EVENT_STOP;
+            }
+            break;
+        }
+        }
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    _rowForActor(actor) {
+        for (let a = actor; a && a !== this.menu.actor; a = a.get_parent()) {
+            if (this._rows.includes(a))
+                return a;
+        }
+        return null;
+    }
+
+    _dragOut(item) {
+        const path = item.file.get_path();
+        const request = {
+            uris: [item.uri],
+            paths: path ? [path] : [],
+            icon: {
+                path: item.thumbnail ?? null,
+                gicon: fallbackIcon(item).to_string(),
+            },
+        };
+
+        // Closing the menu releases the shell's hold on the pointer, so the
+        // helper can take the drag over while the button is still down.
+        this._contextMenu.close(BoxPointer.PopupAnimation.NONE);
+        this.menu.close(BoxPointer.PopupAnimation.NONE);
+
+        // The shell never sees this mouse button go up (the helper gets it),
+        // so it would keep sending clicks to the row it was pressed on. A
+        // short grab elsewhere makes it drop that press.
+        global.stage.grab(Main.layoutManager.dummyCursor).dismiss();
+
+        this._dragHelper.startDrag(request);
+    }
+
     _onDestroy() {
+        this._dragHelper?.destroy();
         this._contextMenu.destroy();
         this._thumbnailer.destroy();
         this._monitor.destroy();

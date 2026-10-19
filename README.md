@@ -29,12 +29,31 @@ everything in your Downloads folder, whichever browser or app saved it.
 - **Bounces when a download finishes**, and a blue dot marks downloads you haven't
   seen yet.
 - **Click** opens the file. The magnifier button shows it in Files.
+- **Drag and drop** a download straight into another app (a folder in Files, a
+  browser upload field, a mail or chat window), like dragging from Chrome's
+  download bubble. X11 only, see [Drag and drop](#drag-and-drop).
 - **Right-click** (or the Menu key) opens a context menu with **Open**, **Open With**
   (every app that handles that file type, default first) and **Show in Files**.
   Arrow keys, Enter and Escape work too.
 - **Clear** hides the current downloads from the list, like Safari. It never deletes
   files. You can bring them back in Settings → History.
 - **"Open Downloads Folder"** at the bottom, like "Open in Finder".
+
+## Drag and drop
+
+Press on a download and move the mouse: the menu closes and the file follows the
+pointer. Drop it on any app that accepts files. Dropping it into a folder in Files
+copies it; the original stays in Downloads.
+
+GNOME Shell can only drag things around inside the shell, not into application
+windows. So the extension hands the drag over to a small GTK helper
+(`dragHelper.js`) that finishes it as a normal desktop drag-and-drop. The helper
+starts in the background when you open the menu and quits by itself after ten idle
+minutes.
+
+This works on **X11 only**. Wayland lets an app start a drag only from a mouse
+press inside its own window, so the helper can't take over. On Wayland the menu
+works as before, just without dragging.
 
 ## Install
 
@@ -93,6 +112,7 @@ match to macOS's "Date Added".
 | `extension.js` | Panel button, popover UI, list and grid rows, animations |
 | `downloadsMonitor.js` | Watches the folder, sorts and filters entries, tracks downloads in progress |
 | `thumbnailer.js` | Creates missing previews with GNOME's thumbnail factory |
+| `dragHelper.js` | Small GTK 3 program that carries a drag into other apps (X11) |
 | `prefs.js` | Settings window (libadwaita) |
 | `stylesheet.css` | Styling |
 | `schemas/` | GSettings schema |
